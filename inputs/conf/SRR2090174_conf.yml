@@ -1,0 +1,9 @@
+catlas_base: SRR2090174
+input_sequences:
+- outputs/abundtrim/SRR2090174.abundtrim.fq.gz
+ksize: 31
+radius: 1
+search:
+- inputs/cmag/GCA_001430905.1_ASM143090v1_genomic.fna.gz
+searchquick:
+- inputs/cmag/GCA_001430905.1_ASM143090v1_genomic.fna.gz
