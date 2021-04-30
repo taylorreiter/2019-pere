@@ -2,7 +2,8 @@ SAMPLES = ['SRR2090174']
 
 rule all:
     input:
-        expand("outputs/megahit/{sample}.contigs.fa", sample = SAMPLES)
+        expand("outputs/megahit/{sample}.contigs.fa", sample = SAMPLES),
+        expand("outputs/bcalm/{sample}/GCA_001430905.1_ASM143090v1_genomic.fna.gz.cdbg_ids.reads.fa.unitigs.gfa", sample = SAMPLES)
 
 rule download_reads:
     output: 
@@ -53,7 +54,7 @@ rule sgc_bin_queries:
         conf = "inputs/conf/{sample}_conf.yml",
         reads = "outputs/abundtrim/{sample}.abundtrim.fq.gz",
         cmag = ["inputs/cmag/GCA_001430905.1_ASM143090v1_genomic.fna.gz"]
-    output: "{sample}_k31_r1_search_oh0/GCA_001430905.1_ASM143090v1_genomic.fna.gz.cdbg_ids.reads.fa.gz"
+    output: "outputs/{sample}_k31_r1_search_oh0/GCA_001430905.1_ASM143090v1_genomic.fna.gz.cdbg_ids.reads.fa.gz"
     shell:'''
     python -m spacegraphcats {input.conf} extract_contigs extract_reads --nolock
     '''
@@ -68,7 +69,7 @@ rule index_cmag:
     
 rule map_nbhd_reads:
     input: 
-        nbhd_reads="{sample}_k31_r1_search_oh0/GCA_001430905.1_ASM143090v1_genomic.fna.gz.cdbg_ids.reads.fa.gz",
+        nbhd_reads="outputs/{sample}_k31_r1_search_oh0/GCA_001430905.1_ASM143090v1_genomic.fna.gz.cdbg_ids.reads.fa.gz",
         cmag="inputs/cmag/GCA_001430905.1_ASM143090v1_genomic.fna.gz",
         index="inputs/cmag/GCA_001430905.1_ASM143090v1_genomic.fna.gz.bwt"
     output: "outputs/map_nbhd_reads/{sample}_nbhd.sam"
@@ -103,4 +104,27 @@ rule megahit_unmapped_reads:
         --out-prefix {wildcards.sample}
     mv {wildcards.sample}_megahit/{wildcards.sample}.contigs.fa {output}
     rm -rf {wildcards.sample}_megahit
+    '''
+
+rule bcalm_nbhd:
+    input: "outputs/{sample}_k31_r1_search_oh0/GCA_001430905.1_ASM143090v1_genomic.fna.gz.cdbg_ids.reads.fa.gz"
+    output: "outputs/bcalm/{sample}/GCA_001430905.1_ASM143090v1_genomic.fna.gz.cdbg_ids.reads.fa.unitigs.fa"
+    params: "outputs/bcalm/{sample}/GCA_001430905.1_ASM143090v1_genomic.fna.gz.cdbg_ids.reads.fa"
+    shell:'''
+    bcalm -in {input} -out-dir outputs/bcalm/{wildcards.sample} -kmer-size 31 -abundance-min 1 -out {params}
+    '''
+
+rule download_convert_to_GFA:
+    output: "scripts/convertToGFA.py"
+    shell:'''
+    wget -O {output} https://raw.githubusercontent.com/spacegraphcats/2018-paper-spacegraphcats/master/pipeline-analyses/variant_snakemake/convertToGFA.py
+    '''
+
+rule convert_to_gfa:
+    input: 
+        unitigs = "outputs/bcalm/{sample}/GCA_001430905.1_ASM143090v1_genomic.fna.gz.cdbg_ids.reads.fa.unitigs.fa", 
+        script = "scripts/convertToGFA.py"
+    output: "outputs/bcalm/{sample}/GCA_001430905.1_ASM143090v1_genomic.fna.gz.cdbg_ids.reads.fa.unitigs.gfa"
+    shell:'''
+    python ./scripts/convertToGFA.py {input.unitigs} {output} 31
     '''
